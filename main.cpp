@@ -9,12 +9,14 @@
 #include <sdsl/wt_int.hpp>
 #include <tuple>
 #include <vector>
+
 using namespace std;
 using namespace sdsl;
 
-int MIN_LENGTH = 2;
-int MAX_LENGTH = 2;
-int SPACER_LENGTH = 5;
+int MIN_LENGTH = 4;
+int MAX_LENGTH = 7;
+int MIN_SPACER_LENGTH = 5;
+int MAX_SPACER_LENGTH = 7;
 
 
 int_vector<> create_sa(string infile) {
@@ -34,23 +36,6 @@ int_vector<> create_sa(string infile) {
     return sa;
 }
 
-// returns the next smallest value in the wt that is bigger than x, within i and j
-int range_next_value(wt_int<> wt, wt_int<>::const_iterator v, int i, int j, int x) {
-    if (i > j) {
-        return -1;
-    }
-    else if (!wt.is_leaf(*v)){
-        return *v;
-    }
-    else {
-        int il = wt.rank(i-1, 0)+1;
-        int jl = wt.rank(j, 1);
-        int ir = i - il;
-        int jr = j - jl;
-        // if x in left tree
-
-    }
-}
 
 int main(int argc, char *argv[]) {
     cst_sada<> cst;
@@ -64,8 +49,8 @@ int main(int argc, char *argv[]) {
     //string file ;
     //cin >> file;
     //construct(cst, file, 1);
-    //construct(cst, "/home/anouk/Documents/memoria/data/testSeq2.fasta", 1);
-    construct_im(cst, "ATCGTACGTTCGAACT", 1);
+    construct(cst, "/home/anouk/Documents/memoria/data/testSeq.fasta", 1);
+    //construct_im(cst, "ATCGTACGTTCGAACT", 1);
 
     // a candidate is a tuple: text length, lb, rb
     vector<tuple<int, int, int>> candidate_list;
@@ -89,40 +74,38 @@ int main(int argc, char *argv[]) {
         }
     }
     // the SA associated with the suffix tree
-    int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/testSeq2.fasta");
+    //int_vector<> sa = create_sa(file);
+    int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/testSeq.fasta");
     // construct the wavelet tree using the SA
     wt_int<> wt;
     construct_im(wt, sa);
+    cout << sa << endl;
     cout << wt << endl;
 
     // printing for debug purposes
     for (int i = 0; i < candidate_list.size(); i++) {
-        cout << i <<endl;
         // obtain bounds
         auto lb = get<1>(candidate_list[i]);
-        auto rb =  get<2>(candidate_list[i]);
+        auto rb = get<2>(candidate_list[i]);
         cout << get<0>(candidate_list[i]) << " lb: " << lb << " rb: " << rb << endl;
+        int len = get<0>(candidate_list[i]);
         // for each candidate in group
-        for (int c = lb; c <= rb; c++){
-            cout << c<< endl;
+        for (int c = lb; c <= rb; c++) {
+            int sa_value = sa[c];
+
+            cout << "searching value after " << sa_value << " in range: " << sa_value + len + MIN_SPACER_LENGTH << " "
+                 << sa_value + len + MAX_SPACER_LENGTH << endl;
             // search for next repeat in group that's within spacer range
-            auto rs = wt.range_search_2d(lb, rb, c+1, c+get<0>(candidate_list[i])+2);
-            for (int k = 0; k< get<0>(rs) ; k++) {
+            auto rs = wt.range_search_2d(lb, rb, sa_value + len + MIN_SPACER_LENGTH,
+                                         sa_value + len + MAX_SPACER_LENGTH);
+            cout << "values found " << get<0>(rs) << endl;
+            for (int k = 0; k < get<0>(rs); k++) {
                 // tuple (position, value)
-                cout << get<1>(rs)[k] << endl;
+                cout << get<1>(rs).at(k) << endl;
             }
         }
 
     }
 
-    /*auto rs = wt.range_search_2d(6, 14, 5, 8);
-    for (int i = 0; i < get<0>(rs) ; i++){
-        cout << get<1>(rs)[i] << endl;
-    }*/
-
-
-    //cout << wt << endl;
-    //int a = range_next_value(wt, wt.begin()+=3, 1, 10, 3);
-    //cout << a << endl;
 }
 
