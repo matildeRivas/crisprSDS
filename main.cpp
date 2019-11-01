@@ -13,10 +13,16 @@
 using namespace std;
 using namespace sdsl;
 
-int MIN_LENGTH = 4;
-int MAX_LENGTH = 7;
-int MIN_SPACER_LENGTH = 5;
-int MAX_SPACER_LENGTH = 7;
+int MIN_LENGTH = 2;
+int MAX_LENGTH = 3;
+int MIN_SPACER_LENGTH = 2;
+int MAX_SPACER_LENGTH = 3;
+
+// Compares two tuples according to their second element
+bool comp_by_second(const tuple<int, int> &a,
+                    const tuple<int, int> &b) {
+    return (get<1>(a) < get<1>(b));
+}
 
 
 int_vector<> create_sa(string infile) {
@@ -34,6 +40,43 @@ int_vector<> create_sa(string infile) {
     sa.resize(n);
     algorithm::calculate_sa((const unsigned char *) seq.data(), n, sa);
     return sa;
+}
+
+// @candidate: text length, lower bound in SA, right bound in SA
+// returns candidates that meet the requirements for being CRISPR as a tuple containing
+// initial position in text,the DR's length and the number of occs
+int validate(tuple<int, int, int> candidate, int_vector<> sa, wt_int<> wt) {
+    // obtain bounds
+    int len = get<0>(candidate);
+    auto lb = get<1>(candidate);
+    auto rb = get<2>(candidate);
+    cout << len << " lb: " << lb << " rb: " << rb << endl;
+    vector<tuple<int, int>> cont_pairs;
+    // for each candidate in group
+    for (int c = lb; c <= rb; c++) {
+        int sa_value = sa[c];
+        cout << "searching value after " << sa_value << " in range: " << sa_value + len + MIN_SPACER_LENGTH << " "
+             << sa_value + len + MAX_SPACER_LENGTH << endl;
+        // search for next repeat in group that's within spacer range
+        auto rs = wt.range_search_2d(lb, rb, sa_value + len + MIN_SPACER_LENGTH,
+                                     sa_value + len + MAX_SPACER_LENGTH);
+        cout << "values found " << get<0>(rs) << endl;
+        if (get<0>(rs) > 0) {
+            for (int k = 0; k < get<0>(rs); k++) {
+                // tuple (position, value)
+                auto c = get<1>(rs).at(k);
+                cont_pairs.emplace_back(sa_value, (int) get<1>(rs).at(k).second);
+                cout << sa_value << " to " << get<1>(rs).at(k).second << endl;
+            }
+        }
+
+    }
+    sort(cont_pairs.begin(), cont_pairs.end(), comp_by_second);
+    sort(cont_pairs.begin(), cont_pairs.end());
+    // TODO: dictionary for last element in group
+    // TODO: obtain CRISPR
+
+    return 0;
 }
 
 
@@ -81,31 +124,15 @@ int main(int argc, char *argv[]) {
     construct_im(wt, sa);
     cout << sa << endl;
     cout << wt << endl;
+    vector<tuple<int, int, int>> filtered_candidates;
 
-    // printing for debug purposes
     for (int i = 0; i < candidate_list.size(); i++) {
-        // obtain bounds
-        auto lb = get<1>(candidate_list[i]);
-        auto rb = get<2>(candidate_list[i]);
-        cout << get<0>(candidate_list[i]) << " lb: " << lb << " rb: " << rb << endl;
-        int len = get<0>(candidate_list[i]);
-        // for each candidate in group
-        for (int c = lb; c <= rb; c++) {
-            int sa_value = sa[c];
-
-            cout << "searching value after " << sa_value << " in range: " << sa_value + len + MIN_SPACER_LENGTH << " "
-                 << sa_value + len + MAX_SPACER_LENGTH << endl;
-            // search for next repeat in group that's within spacer range
-            auto rs = wt.range_search_2d(lb, rb, sa_value + len + MIN_SPACER_LENGTH,
-                                         sa_value + len + MAX_SPACER_LENGTH);
-            cout << "values found " << get<0>(rs) << endl;
-            for (int k = 0; k < get<0>(rs); k++) {
-                // tuple (position, value)
-                cout << get<1>(rs).at(k) << endl;
-            }
-        }
-
+        //filtered_candidates.emplace_back(validate(candidate_list[i], sa, wt));
+        validate(candidate_list[i], sa, wt);
+        //cout << get<0>(candidate_list[i]) << " " <<get<1>(candidate_list[i]) <<" " <<get<2>(candidate_list[i]) <<endl ;
     }
+
 
 }
 
+//vector<tuple<int, int, int>>
