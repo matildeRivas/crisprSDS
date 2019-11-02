@@ -9,6 +9,7 @@
 #include <sdsl/wt_int.hpp>
 #include <tuple>
 #include <vector>
+#include <map>
 
 using namespace std;
 using namespace sdsl;
@@ -44,8 +45,8 @@ int_vector<> create_sa(string infile) {
 
 // @candidate: text length, lower bound in SA, right bound in SA
 // returns candidates that meet the requirements for being CRISPR as a tuple containing
-// initial position in text,the DR's length and the number of occs
-int validate(tuple<int, int, int> candidate, int_vector<> sa, wt_int<> wt) {
+// the number of repeats, their length, start and end position in text
+vector<tuple<int, int, int, int>> validate(tuple<int, int, int> candidate, int_vector<> sa, wt_int<> wt) {
     // obtain bounds
     int len = get<0>(candidate);
     auto lb = get<1>(candidate);
@@ -73,10 +74,36 @@ int validate(tuple<int, int, int> candidate, int_vector<> sa, wt_int<> wt) {
     }
     sort(cont_pairs.begin(), cont_pairs.end(), comp_by_second);
     sort(cont_pairs.begin(), cont_pairs.end());
-    // TODO: dictionary for last element in group
-    // TODO: obtain CRISPR
 
-    return 0;
+    // key is the position of last occurence in chain so far
+    // value stores number of occs, pos of first and last found so far
+    std::map<int, tuple<int, int, int>> chain_map;
+    for (auto &p : cont_pairs) {
+        int from = get<0>(p);
+        int to = get<1>(p);
+        // check if there's a chain that ends in "from" value
+        if (chain_map.count(from)) {
+            //grab the value from that chain, update number of occs and last value, and store in "to"
+            auto prev = chain_map[from];
+            int occs = get<0>(prev);
+            int first_occ = get<1>(prev);
+            chain_map[to] = tuple<int, int, int>(occs + 1, first_occ, to);
+            chain_map.erase(from);
+        } else {
+            // add new start of chain in "to" with "from" as first occurence
+            chain_map[to] = tuple<int, int, int>(2, from, to);
+        }
+
+    }
+    vector<tuple<int, int, int, int>> crispr_list;
+    for (auto &x : chain_map) {
+        // for each CRISPR we store the number of repeats, their length, start and end position
+        tuple<int, int, int, int> crispr = tuple<int, int, int, int>(get<0>(x.second), len, get<1>(x.second),
+                                                                     get<2>(x.second) + len - 1);
+        crispr_list.emplace_back(crispr);
+    }
+
+    return crispr_list;
 }
 
 
@@ -92,7 +119,7 @@ int main(int argc, char *argv[]) {
     //string file ;
     //cin >> file;
     //construct(cst, file, 1);
-    construct(cst, "/home/anouk/Documents/memoria/data/testSeq.fasta", 1);
+    construct(cst, "/home/anouk/Documents/memoria/data/testSeq2.fasta", 1);
     //construct_im(cst, "ATCGTACGTTCGAACT", 1);
 
     // a candidate is a tuple: text length, lb, rb
@@ -118,17 +145,17 @@ int main(int argc, char *argv[]) {
     }
     // the SA associated with the suffix tree
     //int_vector<> sa = create_sa(file);
-    int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/testSeq.fasta");
+    int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/testSeq2.fasta");
     // construct the wavelet tree using the SA
     wt_int<> wt;
     construct_im(wt, sa);
     cout << sa << endl;
     cout << wt << endl;
-    vector<tuple<int, int, int>> filtered_candidates;
+    vector<tuple<int, int, int, int>> filtered_candidates;
 
     for (int i = 0; i < candidate_list.size(); i++) {
-        //filtered_candidates.emplace_back(validate(candidate_list[i], sa, wt));
-        validate(candidate_list[i], sa, wt);
+        for (auto &cr : validate(candidate_list[i], sa, wt))
+            filtered_candidates.emplace_back(cr);
         //cout << get<0>(candidate_list[i]) << " " <<get<1>(candidate_list[i]) <<" " <<get<2>(candidate_list[i]) <<endl ;
     }
 
