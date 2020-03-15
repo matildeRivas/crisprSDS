@@ -14,6 +14,7 @@
 using namespace std;
 using namespace sdsl;
 
+
 //23 47 28 37
 int MIN_LENGTH = 23;
 int MAX_LENGTH = 47;
