@@ -5,7 +5,7 @@
 #include "../includes/crispr.h"
 #include <algorithm>
 
-Crispr::Crispr(int dr_length, std::vector<int> dr_positions, string dr_text) {
+Crispr::Crispr(int dr_length, std::vector<int> dr_positions, std::string dr_text) {
     detected = 0;
     length = dr_length;
     positions = dr_positions;
