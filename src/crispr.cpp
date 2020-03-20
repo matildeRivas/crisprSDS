@@ -12,6 +12,8 @@ Crispr::Crispr(int dr_length, std::vector<int> dr_positions, std::string dr_text
     dr = dr_text;
 }
 
+//TODO: test
+
 void Crispr::check_candidate(int reps, int cand_length, int start, int end) {
     //Discard candidate if its DR length is a different length and if it is out of range of the crispr
     if (cand_length == length and end <= positions.back()) {

@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.14)
 project(crisprSDS)
 
 set(CMAKE_CXX_STANDARD 14)
+set(SOURCE_FILES main.cpp)
 
 add_executable(crisprSDS main.cpp src/crispr.cpp includes/crispr.h)
+add_executable(main ${SOURCE_FILES})
 
 include_directories(includes)
 include_directories(external/sdsl-lite/include)
