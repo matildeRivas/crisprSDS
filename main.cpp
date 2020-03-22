@@ -11,6 +11,8 @@
 #include <vector>
 #include <map>
 
+#include <crispr.h>
+
 using namespace std;
 using namespace sdsl;
 
@@ -136,7 +138,7 @@ vector<tuple<int, int, int, int>> validate(tuple<int, int, int> candidate, int_v
     for (auto &x : chain_map) {
         // for each CRISPR we store the number of repeats, their length, start and end position
         tuple<int, int, int, int> crispr = tuple<int, int, int, int>(get<0>(x.second), len, get<1>(x.second) + 1,
-                                                                     get<2>(x.second) + 1 + len);
+                                                                     get<2>(x.second) + 1);
         crispr_list.emplace_back(crispr);
 
     }
@@ -148,11 +150,12 @@ vector<tuple<int, int, int, int>> validate(tuple<int, int, int> candidate, int_v
 vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
     cst_sada<> cst;
     construct(cst, filename, 1);
-
+    //start time
     // a candidate is a tuple: text length, lb, rb
     vector<tuple<int, int, int>> candidate_list;
     // select candidates that meet basic criteria
     candidate_list = select_candidates(cst, min_reps);
+    //end time
     // get the SA associated with the suffix tree
     int_vector<> sa = create_sa(filename);
     //int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/GI326314823.fasta");
@@ -162,7 +165,7 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
     //cout << sa << endl;
     vector<tuple<int, int, int, int>> pre_filtered_candidates;
     vector<tuple<int, int, int, int>> filtered_candidates;
-
+    //start time
     // validate candidates and insert them in pre_filtered list
     for (int i = 0; i < candidate_list.size(); i++) {
         for (auto &cr : validate(candidate_list[i], sa, wt))
@@ -173,22 +176,35 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
 
     if (pre_filtered_candidates.size()) {
         sort(pre_filtered_candidates.begin(), pre_filtered_candidates.end(), comp_by_third);
-        int checker = get<3>(pre_filtered_candidates[0]); // end position
+        int checker = get<3>(pre_filtered_candidates[0]) + get<1>(pre_filtered_candidates[0]); // end position
         filtered_candidates.emplace_back(pre_filtered_candidates[0]);
         for (auto i = pre_filtered_candidates.begin(); i != pre_filtered_candidates.end(); ++i) {
-            if (get<3>(*i) > checker) {
+            if (get<3>(*i) + get<1>(*i) > checker) {
                 filtered_candidates.emplace_back(*i);
-                checker = get<3>(*i);
+                checker = get<3>(*i) + get<1>(*i);
             }
         }
 
     }
+    //end time
     return filtered_candidates;
 
 }
 
+// returns the ratio of detected posisitves to true positives
+double sensitivity(Crispr crispr, vector<tuple<int, int, int, int>> detected_crispr) {
+    for (auto &crispr_chain : detected_crispr) {
+        if (crispr.percentage_detected() < 100) {
+            crispr.check_candidate(get<0>(crispr_chain), get<1>(crispr_chain), get<2>(crispr_chain),
+                                   get<3>(crispr_chain));
+        } else { break; }
+    }
+    return crispr.percentage_detected();
+}
+
 
 int main(int argc, char *argv[]) {
+
     int min_reps;
     if (argc < 3) {
         min_reps = 2;
@@ -199,17 +215,27 @@ int main(int argc, char *argv[]) {
     string file;
     //cin >> file;
     //GI326314823
-    file = "/home/anouk/Documents/memoria/data/GI326314823.fasta";
+    /*file = "/home/anouk/Documents/memoria/data/GI326314823.fasta";
+    vector<int> gi23_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004, 301070,
+                         301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796, 301862,
+                         301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589, 302655,
+                         302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
+                         303445};
+    Crispr crispr = Crispr(36, gi23_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
 
     vector<tuple<int, int, int, int>> detected_crispr;
     detected_crispr = find_crispr(file, min_reps);
-    // printing for debug reasons
+    */// printing for debug reasons
+    file = "/home/anouk/Documents/memoria/data/Acidithiobacillus_ferrivorans_ACHa_45_pseudochromosome.fna";
+    vector<tuple<int, int, int, int>> detected_crispr;
+    detected_crispr = find_crispr(file, min_reps);
     for (auto &crispr_chain : detected_crispr) {
         cout << "number of reps " << get<0>(crispr_chain) << " length " << get<1>(crispr_chain) << " start pos "
              << get<2>(crispr_chain) <<
              " end pos " << get<3>(crispr_chain) << endl;
     }
 
+    //cout << crispr.get_text() << " " << sensitivity(crispr, detected_crispr) << endl;
 
 }
 
