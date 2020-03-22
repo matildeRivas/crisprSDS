@@ -202,6 +202,38 @@ double sensitivity(Crispr crispr, vector<tuple<int, int, int, int>> detected_cri
     return crispr.percentage_detected();
 }
 
+/*  @ground_truth: array of DR positions for each crispr
+    @filename: name of file containing genome
+    @min_reps: minimum number of repeats required to be considered a crispr
+    returns the number of true positive, false positive, and false negative detected crispr
+*/
+tuple<int, int, int> run_test(vector<Crispr> ground_truth, string filename, int min_reps, double complete_percentage) {
+    int tp = 0;
+    int fp = 0;
+    int fn = 0;
+    // run algorithm to find crispr
+    vector<tuple<int, int, int, int>> detected_crispr;
+    detected_crispr = find_crispr(filename, min_reps);
+    for (auto &crispr_chain : detected_crispr) {
+        cout << "number of reps " << get<0>(crispr_chain) << " length " << get<1>(crispr_chain) << " start pos "
+             << get<2>(crispr_chain) <<
+             " end pos " << get<3>(crispr_chain) << endl;
+    }
+    // for each real crispr, check whether it was correctly detected
+    for (auto &crispr : ground_truth) {
+        double completeness;
+        completeness = sensitivity(crispr, detected_crispr);
+        if (completeness >= complete_percentage) {
+            tp += 1;
+        } else {
+            fn += 1;
+        }
+    }
+    fp = detected_crispr.size() - tp;
+    tuple<int, int, int> result(tp, fp, fn);
+    return result;
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -215,25 +247,27 @@ int main(int argc, char *argv[]) {
     string file;
     //cin >> file;
     //GI326314823
-    /*file = "/home/anouk/Documents/memoria/data/GI326314823.fasta";
+    file = "/home/anouk/Documents/memoria/data/GI326314823.fasta";
+    vector<Crispr> genome23;
     vector<int> gi23_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004, 301070,
                          301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796, 301862,
                          301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589, 302655,
                          302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
                          303445};
     Crispr crispr = Crispr(36, gi23_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
+    genome23.emplace_back(crispr);
+    tuple<int, int, int> test23 = run_test(genome23, file, min_reps, 85);
+    cout << "TP: " << get<0>(test23) << " FP: " << get<1>(test23) << " FN: " << get<2>(test23) << endl;
 
-    vector<tuple<int, int, int, int>> detected_crispr;
-    detected_crispr = find_crispr(file, min_reps);
-    */// printing for debug reasons
-    file = "/home/anouk/Documents/memoria/data/Acidithiobacillus_ferrivorans_ACHa_45_pseudochromosome.fna";
-    vector<tuple<int, int, int, int>> detected_crispr;
-    detected_crispr = find_crispr(file, min_reps);
-    for (auto &crispr_chain : detected_crispr) {
+    // printing for debug reasons
+    //file = "/home/anouk/Documents/memoria/data/Acidithiobacillus_ferrivorans_ACHa_45_pseudochromosome.fna";
+    //vector<tuple<int, int, int, int>> detected_crispr;
+    //detected_crispr = find_crispr(file, min_reps);
+    /*for (auto &crispr_chain : detected_crispr) {
         cout << "number of reps " << get<0>(crispr_chain) << " length " << get<1>(crispr_chain) << " start pos "
              << get<2>(crispr_chain) <<
              " end pos " << get<3>(crispr_chain) << endl;
-    }
+    }*/
 
     //cout << crispr.get_text() << " " << sensitivity(crispr, detected_crispr) << endl;
 
