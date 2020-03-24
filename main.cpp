@@ -10,6 +10,7 @@
 #include <tuple>
 #include <vector>
 #include <map>
+#include <sstream>
 
 #include <crispr.h>
 
@@ -22,6 +23,21 @@ int MIN_LENGTH = 23;
 int MAX_LENGTH = 47;
 int MIN_SPACER_LENGTH = 28;
 int MAX_SPACER_LENGTH = 37;
+
+
+void write_output(vector<tuple<int, int, int, int>> detected_crispr, string infile, string outfile_name) {
+    ofstream outfile;
+    outfile.open(outfile_name);
+    for (auto &crispr_chain : detected_crispr) {
+        int length = get<1>(crispr_chain);
+        int start = get<2>(crispr_chain);
+        outfile << "Number of repetitions: " << get<0>(crispr_chain) << " DR length: " << length
+                << " Position of first DR: "
+                << start <<
+                " Position of last DR: " << get<3>(crispr_chain) << '\n' << endl;
+    }
+    outfile.close();
+}
 
 
 //selects repeats that meet basic criteria
@@ -171,19 +187,22 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
         for (auto &cr : validate(candidate_list[i], sa, wt))
             pre_filtered_candidates.emplace_back(cr);
     }
-
+    write_output(pre_filtered_candidates, filename, "/home/anouk/Documents/memoria/output/NC_013210_preout.txt");
     // deletes chains that are contained in another one, CHECK length
-
     if (pre_filtered_candidates.size()) {
         sort(pre_filtered_candidates.begin(), pre_filtered_candidates.end(), comp_by_third);
-        int checker = get<3>(pre_filtered_candidates[0]) + get<1>(pre_filtered_candidates[0]); // end position
-        filtered_candidates.emplace_back(pre_filtered_candidates[0]);
-        for (auto i = pre_filtered_candidates.begin(); i != pre_filtered_candidates.end(); ++i) {
-            if (get<3>(*i) + get<1>(*i) > checker) {
-                filtered_candidates.emplace_back(*i);
-                checker = get<3>(*i) + get<1>(*i);
+        tuple<int, int, int, int> checker = pre_filtered_candidates[0];
+        for (auto i = pre_filtered_candidates.begin() + 1; i != pre_filtered_candidates.end(); i++) {
+            if (get<2>(*i) < get<3>(checker)) {
+                if (get<0>(*i) > get<0>(checker)) {
+                    checker = *i;
+                }
+            } else {
+                filtered_candidates.emplace_back(checker);
+                checker = *i;
             }
         }
+        filtered_candidates.emplace_back(checker);
 
     }
     //end time
@@ -191,47 +210,37 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
 
 }
 
-// returns the ratio of detected posisitves to true positives
-double sensitivity(Crispr crispr, vector<tuple<int, int, int, int>> detected_crispr) {
+// verifies a detected crispr
+void verify_crispr(Crispr &crispr, vector<tuple<int, int, int, int>> detected_crispr) {
     for (auto &crispr_chain : detected_crispr) {
         if (crispr.percentage_detected() < 100) {
             crispr.check_candidate(get<0>(crispr_chain), get<1>(crispr_chain), get<2>(crispr_chain),
                                    get<3>(crispr_chain));
         } else { break; }
     }
-    return crispr.percentage_detected();
 }
 
-/*  @ground_truth: array of DR positions for each crispr
-    @filename: name of file containing genome
-    @min_reps: minimum number of repeats required to be considered a crispr
-    returns the number of true positive, false positive, and false negative detected crispr
-*/
-tuple<int, int, int> run_test(vector<Crispr> ground_truth, string filename, int min_reps, double complete_percentage) {
-    int tp = 0;
-    int fp = 0;
-    int fn = 0;
+//por cada crispr voy a tener quee hacer una linea con su ID, la cantidad de reps que tiene,
+// las parcialmente detectadas y la cantidad detecada. Luego puedo procesar esta informacion de otra manera
+
+void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string outfilename) {
     // run algorithm to find crispr
     vector<tuple<int, int, int, int>> detected_crispr;
     detected_crispr = find_crispr(filename, min_reps);
-    for (auto &crispr_chain : detected_crispr) {
-        cout << "number of reps " << get<0>(crispr_chain) << " length " << get<1>(crispr_chain) << " start pos "
-             << get<2>(crispr_chain) <<
-             " end pos " << get<3>(crispr_chain) << endl;
-    }
+    std::stringstream ss;
+    ss << "number of crispr \t reported crispr \n" << ground_truth.size() << "\t" << detected_crispr.size() << "\n \n";
+    ss << "id \t repeats \t detected occs \t partially detected occs \n";
     // for each real crispr, check whether it was correctly detected
     for (auto &crispr : ground_truth) {
-        double completeness;
-        completeness = sensitivity(crispr, detected_crispr);
-        if (completeness >= complete_percentage) {
-            tp += 1;
-        } else {
-            fn += 1;
-        }
+        verify_crispr(crispr, detected_crispr);
+        ss << crispr.id << "\t" << crispr.positions.size() << "\t" << crispr.get_detected() << "\t"
+           << crispr.get_partially_detected() << "\n";
     }
-    fp = detected_crispr.size() - tp;
-    tuple<int, int, int> result(tp, fp, fn);
-    return result;
+    std::string str = ss.str();
+    ofstream outfile;
+    outfile.open(outfilename);
+    outfile << str;
+    outfile.close();
 }
 
 
@@ -246,31 +255,47 @@ int main(int argc, char *argv[]) {
     }
     string file;
     //cin >> file;
+
+    //Clostridioides difficile  NZ https://crispr.i2bc.paris-saclay.fr/crispr/crispr_db.php?checked%5B%5D=NZ_LN614756
+    //
     //GI326314823
-    file = "/home/anouk/Documents/memoria/data/GI326314823.fasta";
-    vector<Crispr> genome23;
-    vector<int> gi23_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004, 301070,
-                         301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796, 301862,
-                         301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589, 302655,
-                         302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
-                         303445};
-    Crispr crispr = Crispr(36, gi23_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
-    genome23.emplace_back(crispr);
-    tuple<int, int, int> test23 = run_test(genome23, file, min_reps, 85);
-    cout << "TP: " << get<0>(test23) << " FP: " << get<1>(test23) << " FN: " << get<2>(test23) << endl;
+    file = "/home/anouk/Documents/memoria/data/NC_013210.fasta";
+    string outfile;
+    outfile = "/home/anouk/Documents/memoria/output/NC_013210_out.txt";
+    /*vector<Crispr> genome23;
+    vector<int> NC_015138_1_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004,
+                                301070,
+                                301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796,
+                                301862,
+                                301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589,
+                                302655,
+                                302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
+                                303445};
+    Crispr NC_015138_1 = Crispr("NC_015138_1", 36, NC_015138_1_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
+    vector<int> NC_015138_2_pos{304387, 304453};
+    Crispr NC_015138_2 = Crispr("NC_015138_2",36, NC_015138_2_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
+    vector<int> NC_015138_3_pos{305395, 305462, 305527, 305593, 305659, 305725, 305791, 305857, 305923, 305989, 306055,
+                                306121, 306187};
+    Crispr NC_015138_3 = Crispr("NC_015138_3", 36, NC_015138_3_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
+
+
+    genome23.emplace_back(NC_015138_1);
+    */
+    //tuple<int, int, int> test23 = run_test(genome23, file, min_reps, 85);
+    //cout << "TP: " << get<0>(test23) << " FP: " << get<1>(test23) << " FN: " << get<2>(test23) << endl;
 
     // printing for debug reasons
     //file = "/home/anouk/Documents/memoria/data/Acidithiobacillus_ferrivorans_ACHa_45_pseudochromosome.fna";
-    //vector<tuple<int, int, int, int>> detected_crispr;
-    //detected_crispr = find_crispr(file, min_reps);
-    /*for (auto &crispr_chain : detected_crispr) {
-        cout << "number of reps " << get<0>(crispr_chain) << " length " << get<1>(crispr_chain) << " start pos "
-             << get<2>(crispr_chain) <<
-             " end pos " << get<3>(crispr_chain) << endl;
-    }*/
 
-    //cout << crispr.get_text() << " " << sensitivity(crispr, detected_crispr) << endl;
+    vector<Crispr> genome013210;
+    vector<int> NC_013210_pos{123524, 123585, 123646, 123707, 123768, 123829, 123890, 123951, 124012, 124073, 124134,
+                              124195, 124256, 124317, 124378, 124439, 124500, 124561, 124622, 124683, 124744, 124805,
+                              124866, 124927
+    };
+    Crispr NC_013210 = Crispr("NC_013210", 29, NC_013210_pos, "GTGTTCCCCGCACACGCGGGGATGAACCG");
+    genome013210.emplace_back(NC_013210);
+    string test_output = "/home/anouk/Documents/memoria/output/NC_0123210_test.txt";
+    run_test(genome013210, file, min_reps, test_output);
+
 
 }
-
-//vector<tuple<int, int, int>>

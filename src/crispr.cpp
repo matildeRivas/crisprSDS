@@ -6,8 +6,10 @@ using namespace std;
 #include "../includes/crispr.h"
 #include <algorithm>
 
-Crispr::Crispr(int dr_length, std::vector<int> dr_positions, std::string dr_text) {
+Crispr::Crispr(std::string name_id, int dr_length, std::vector<int> dr_positions, std::string dr_text) {
+    id = name_id;
     detected = 0;
+    partially_detected = 0;
     length = dr_length;
     positions = dr_positions;
     dr = dr_text;
@@ -16,14 +18,21 @@ Crispr::Crispr(int dr_length, std::vector<int> dr_positions, std::string dr_text
 
 void Crispr::check_candidate(int reps, int cand_length, int start, int end) {
     //Discard candidate if its DR length is a different length and if it is out of range of the crispr
-    if (cand_length == length and end <= positions.back()) {
+    if (end <= positions.back()) {
+        int delta = length - cand_length;
         //If the first and last candidate DR positions are in the array of occurences, the DR repetitions are counted as detected
-        if (std::find(positions.begin(), positions.end(), start) != positions.end() &&
-            std::find(positions.begin(), positions.end(), end) != positions.end()) {
-            detected = detected + reps;
+        for (int i = 0; i < delta; i++) {
+            if (std::find(positions.begin(), positions.end(), start - i) != positions.end() &&
+                std::find(positions.begin(), positions.end(), end - i) != positions.end()) {
+                if (length == cand_length and i == 0) {
+                    detected += reps;
+                } else {
+                    partially_detected += reps;
+                }
 
-
+            }
         }
+
 
     }
 }
@@ -34,4 +43,12 @@ double Crispr::percentage_detected() {
 
 std::string Crispr::get_text() {
     return dr;
+}
+
+int Crispr::get_detected() {
+    return detected;
+}
+
+int Crispr::get_partially_detected() {
+    return partially_detected;
 }

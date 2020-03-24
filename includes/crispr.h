@@ -11,13 +11,16 @@
 
 
 class Crispr {
+public:
+    std::string id;
     int length;
     std::vector<int> positions;
     int detected;
+    int partially_detected;
     std::string dr;
 
 public:
-    Crispr(int dr_length, std::vector<int> dr_positions, std::string dr_text);
+    Crispr(std::string id, int dr_length, std::vector<int> dr_positions, std::string dr_text);
 
     //tally the number of DRs detected by a candidate
     void check_candidate(int reps, int candidate_length, int start, int end);
@@ -25,6 +28,10 @@ public:
     double percentage_detected();
 
     std::string get_text();
+
+    int get_detected();
+
+    int get_partially_detected();
 
 };
 
