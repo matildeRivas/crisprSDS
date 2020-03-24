@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <sstream>
+#include <chrono>
 
 #include <crispr.h>
 
@@ -25,7 +26,7 @@ int MIN_SPACER_LENGTH = 28;
 int MAX_SPACER_LENGTH = 37;
 
 
-void write_output(vector<tuple<int, int, int, int>> detected_crispr, string infile, string outfile_name) {
+void write_output(vector<tuple<int, int, int, int>> detected_crispr, string outfile_name) {
     ofstream outfile;
     outfile.open(outfile_name);
     for (auto &crispr_chain : detected_crispr) {
@@ -163,21 +164,24 @@ vector<tuple<int, int, int, int>> validate(tuple<int, int, int> candidate, int_v
 }
 
 
-vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
+vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps, tuple<double, double, double> &time) {
+    // construct needed structures
     cst_sada<> cst;
     construct(cst, filename, 1);
-    //start time
-    // a candidate is a tuple: text length, lb, rb
-    vector<tuple<int, int, int>> candidate_list;
-    // select candidates that meet basic criteria
-    candidate_list = select_candidates(cst, min_reps);
-    //end time
     // get the SA associated with the suffix tree
     int_vector<> sa = create_sa(filename);
     //int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/GI326314823.fasta");
     // construct the wavelet tree using the SA
     wt_int<> wt;
     construct_im(wt, sa);
+    std::chrono::steady_clock::time_point begin_selection = std::chrono::steady_clock::now();
+    // a candidate is a tuple: text length, lb, rb
+    vector<tuple<int, int, int>> candidate_list;
+    // select candidates that meet basic criteria
+    candidate_list = select_candidates(cst, min_reps);
+    std::chrono::steady_clock::time_point end_selection = std::chrono::steady_clock::now();
+
+    std::chrono::steady_clock::time_point begin_prefilter = std::chrono::steady_clock::now();
     //cout << sa << endl;
     vector<tuple<int, int, int, int>> pre_filtered_candidates;
     vector<tuple<int, int, int, int>> filtered_candidates;
@@ -187,7 +191,9 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
         for (auto &cr : validate(candidate_list[i], sa, wt))
             pre_filtered_candidates.emplace_back(cr);
     }
-    write_output(pre_filtered_candidates, filename, "/home/anouk/Documents/memoria/output/NC_013210_preout.txt");
+    std::chrono::steady_clock::time_point end_prefilter = std::chrono::steady_clock::now();
+    write_output(pre_filtered_candidates, "/home/anouk/Documents/memoria/output/NC_016148_preout.txt");
+    std::chrono::steady_clock::time_point begin_filter = std::chrono::steady_clock::now();
     // deletes chains that are contained in another one, CHECK length
     if (pre_filtered_candidates.size()) {
         sort(pre_filtered_candidates.begin(), pre_filtered_candidates.end(), comp_by_third);
@@ -205,7 +211,12 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps) {
         filtered_candidates.emplace_back(checker);
 
     }
+    std::chrono::steady_clock::time_point end_filter = std::chrono::steady_clock::now();
     //end time
+    get<0>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_selection - begin_selection).count();
+    get<1>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(
+            end_prefilter - begin_prefilter).count();
+    get<2>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_filter - begin_filter).count();
     return filtered_candidates;
 
 }
@@ -223,12 +234,15 @@ void verify_crispr(Crispr &crispr, vector<tuple<int, int, int, int>> detected_cr
 //por cada crispr voy a tener quee hacer una linea con su ID, la cantidad de reps que tiene,
 // las parcialmente detectadas y la cantidad detecada. Luego puedo procesar esta informacion de otra manera
 
-void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string outfilename) {
+void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string test_outfilename, string output_file) {
     // run algorithm to find crispr
     vector<tuple<int, int, int, int>> detected_crispr;
-    detected_crispr = find_crispr(filename, min_reps);
+    tuple<double, double, double> time;
+    detected_crispr = find_crispr(filename, min_reps, time);
     std::stringstream ss;
-    ss << "number of crispr \t reported crispr \n" << ground_truth.size() << "\t" << detected_crispr.size() << "\n \n";
+    ss << "number of crispr \t reported crispr \n" << ground_truth.size() << "\t" << detected_crispr.size() << "\n";
+    ss << "selection time \t filtering time \n";
+    ss << get<0>(time) << "\t" << get<1>(time) + get<2>(time) << "\n";
     ss << "id \t repeats \t detected occs \t partially detected occs \n";
     // for each real crispr, check whether it was correctly detected
     for (auto &crispr : ground_truth) {
@@ -238,9 +252,10 @@ void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string
     }
     std::string str = ss.str();
     ofstream outfile;
-    outfile.open(outfilename);
+    outfile.open(test_outfilename);
     outfile << str;
     outfile.close();
+    write_output(detected_crispr, output_file);
 }
 
 
@@ -259,43 +274,27 @@ int main(int argc, char *argv[]) {
     //Clostridioides difficile  NZ https://crispr.i2bc.paris-saclay.fr/crispr/crispr_db.php?checked%5B%5D=NZ_LN614756
     //
     //GI326314823
-    file = "/home/anouk/Documents/memoria/data/NC_013210.fasta";
-    string outfile;
-    outfile = "/home/anouk/Documents/memoria/output/NC_013210_out.txt";
-    /*vector<Crispr> genome23;
-    vector<int> NC_015138_1_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004,
-                                301070,
-                                301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796,
-                                301862,
-                                301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589,
-                                302655,
-                                302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
-                                303445};
-    Crispr NC_015138_1 = Crispr("NC_015138_1", 36, NC_015138_1_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
-    vector<int> NC_015138_2_pos{304387, 304453};
-    Crispr NC_015138_2 = Crispr("NC_015138_2",36, NC_015138_2_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
-    vector<int> NC_015138_3_pos{305395, 305462, 305527, 305593, 305659, 305725, 305791, 305857, 305923, 305989, 306055,
-                                306121, 306187};
-    Crispr NC_015138_3 = Crispr("NC_015138_3", 36, NC_015138_3_pos, "AGTCTAGATCACTGGGATATGCGCACTGGCCGGAAC");
+    file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
+    string outfile = "/home/anouk/Documents/memoria/output/NC_016148_out.txt";
+    string test_output = "/home/anouk/Documents/memoria/output/NC_016148_test.txt";
 
-
-    genome23.emplace_back(NC_015138_1);
-    */
-    //tuple<int, int, int> test23 = run_test(genome23, file, min_reps, 85);
-    //cout << "TP: " << get<0>(test23) << " FP: " << get<1>(test23) << " FN: " << get<2>(test23) << endl;
-
-    // printing for debug reasons
-    //file = "/home/anouk/Documents/memoria/data/Acidithiobacillus_ferrivorans_ACHa_45_pseudochromosome.fna";
-
-    vector<Crispr> genome013210;
-    vector<int> NC_013210_pos{123524, 123585, 123646, 123707, 123768, 123829, 123890, 123951, 124012, 124073, 124134,
-                              124195, 124256, 124317, 124378, 124439, 124500, 124561, 124622, 124683, 124744, 124805,
-                              124866, 124927
+    vector<Crispr> genomeNC_016148;
+    vector<int> NC_016148_1_pos{256316, 256379, 256439, 256501, 256564, 256625, 256687, 256752, 256819, 256883, 256947,
+                                257014, 257079, 257140, 257203, 257267, 257335, 257403, 257470, 257533, 257597, 257665,
+                                257727, 257792
     };
-    Crispr NC_013210 = Crispr("NC_013210", 29, NC_013210_pos, "GTGTTCCCCGCACACGCGGGGATGAACCG");
-    genome013210.emplace_back(NC_013210);
-    string test_output = "/home/anouk/Documents/memoria/output/NC_0123210_test.txt";
-    run_test(genome013210, file, min_reps, test_output);
+    Crispr NC_016148_1 = Crispr("NC_016148_1", 30, NC_016148_1_pos, "GATTCAATCGAACCGATACGGAATGGAAAC");
+    genomeNC_016148.emplace_back(NC_016148_1);
+    vector<int> NC_016148_2_pos{279012, 279079, 279145, 279212, 279279, 279345, 279411, 279476, 279542, 279607, 279673,
+                                279739, 279806, 279872, 279938, 280003, 280069, 280134, 280201, 280268, 280334, 280401,
+                                280467, 280535, 280602, 280669, 280734, 280799, 280865, 280930, 280996, 281061, 281130,
+                                281196, 281261, 281327, 281394, 281459, 281526, 281593, 281660, 281727, 281793, 281858,
+                                281924, 281990
+
+    };
+    Crispr NC_016148_2 = Crispr("NC_016148_2", 30, NC_016148_2_pos, "GTTTTAGACCTTCCTATAAGGGATGGAAAC");
+    genomeNC_016148.emplace_back(NC_016148_2);
+    run_test(genomeNC_016148, file, min_reps, test_output, outfile);
 
 
 }

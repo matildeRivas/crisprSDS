@@ -21,7 +21,7 @@ void Crispr::check_candidate(int reps, int cand_length, int start, int end) {
     if (end <= positions.back()) {
         int delta = length - cand_length;
         //If the first and last candidate DR positions are in the array of occurences, the DR repetitions are counted as detected
-        for (int i = 0; i < delta; i++) {
+        for (int i = 0; i <= delta; i++) {
             if (std::find(positions.begin(), positions.end(), start - i) != positions.end() &&
                 std::find(positions.begin(), positions.end(), end - i) != positions.end()) {
                 if (length == cand_length and i == 0) {
@@ -29,7 +29,7 @@ void Crispr::check_candidate(int reps, int cand_length, int start, int end) {
                 } else {
                     partially_detected += reps;
                 }
-
+                break;
             }
         }
 
