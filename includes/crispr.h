@@ -17,10 +17,9 @@ public:
     std::vector<int> positions;
     int detected;
     int partially_detected;
-    std::string dr;
 
 public:
-    Crispr(std::string id, int dr_length, std::vector<int> dr_positions, std::string dr_text);
+    Crispr(std::string id, int dr_length, std::vector<int> dr_positions);
 
     //tally the number of DRs detected by a candidate
     void check_candidate(int reps, int candidate_length, int start, int end);

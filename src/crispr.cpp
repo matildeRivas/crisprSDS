@@ -6,13 +6,12 @@ using namespace std;
 #include "../includes/crispr.h"
 #include <algorithm>
 
-Crispr::Crispr(std::string name_id, int dr_length, std::vector<int> dr_positions, std::string dr_text) {
+Crispr::Crispr(std::string name_id, int dr_length, std::vector<int> dr_positions) {
     id = name_id;
     detected = 0;
     partially_detected = 0;
     length = dr_length;
     positions = dr_positions;
-    dr = dr_text;
 }
 
 
@@ -39,10 +38,6 @@ void Crispr::check_candidate(int reps, int cand_length, int start, int end) {
 
 double Crispr::percentage_detected() {
     return 100 * (double) detected / positions.size();
-}
-
-std::string Crispr::get_text() {
-    return dr;
 }
 
 int Crispr::get_detected() {

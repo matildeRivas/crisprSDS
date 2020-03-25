@@ -27,16 +27,21 @@ int MAX_SPACER_LENGTH = 37;
 
 
 void write_output(vector<tuple<int, int, int, int>> detected_crispr, string outfile_name) {
-    ofstream outfile;
-    outfile.open(outfile_name);
+    std::stringstream ss;
+    ss << "Number of repetitions\tDR length\tPosition of first DR\tPosition of last DR\n";
+
     for (auto &crispr_chain : detected_crispr) {
         int length = get<1>(crispr_chain);
         int start = get<2>(crispr_chain);
-        outfile << "Number of repetitions: " << get<0>(crispr_chain) << " DR length: " << length
-                << " Position of first DR: "
-                << start <<
-                " Position of last DR: " << get<3>(crispr_chain) << '\n' << endl;
+        ss << get<0>(crispr_chain) << "\t" << length
+           << "\t"
+           << start <<
+           "\t" << get<3>(crispr_chain) << "\n" << endl;
     }
+    std::string str = ss.str();
+    ofstream outfile;
+    outfile.open(outfile_name);
+    outfile << str;
     outfile.close();
 }
 
@@ -170,7 +175,6 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps, tup
     construct(cst, filename, 1);
     // get the SA associated with the suffix tree
     int_vector<> sa = create_sa(filename);
-    //int_vector<> sa = create_sa("/home/anouk/Documents/memoria/data/GI326314823.fasta");
     // construct the wavelet tree using the SA
     wt_int<> wt;
     construct_im(wt, sa);
@@ -192,7 +196,7 @@ vector<tuple<int, int, int, int>> find_crispr(string filename, int min_reps, tup
             pre_filtered_candidates.emplace_back(cr);
     }
     std::chrono::steady_clock::time_point end_prefilter = std::chrono::steady_clock::now();
-    write_output(pre_filtered_candidates, "/home/anouk/Documents/memoria/output/NC_016148_preout.txt");
+    write_output(pre_filtered_candidates, "/home/anouk/Documents/memoria/output/NC_014392preout.txt");
     std::chrono::steady_clock::time_point begin_filter = std::chrono::steady_clock::now();
     // deletes chains that are contained in another one, CHECK length
     if (pre_filtered_candidates.size()) {
@@ -273,28 +277,85 @@ int main(int argc, char *argv[]) {
 
     //Clostridioides difficile  NZ https://crispr.i2bc.paris-saclay.fr/crispr/crispr_db.php?checked%5B%5D=NZ_LN614756
     //
-    //GI326314823
-    file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
-    string outfile = "/home/anouk/Documents/memoria/output/NC_016148_out.txt";
-    string test_output = "/home/anouk/Documents/memoria/output/NC_016148_test.txt";
 
-    vector<Crispr> genomeNC_016148;
-    vector<int> NC_016148_1_pos{256316, 256379, 256439, 256501, 256564, 256625, 256687, 256752, 256819, 256883, 256947,
-                                257014, 257079, 257140, 257203, 257267, 257335, 257403, 257470, 257533, 257597, 257665,
-                                257727, 257792
+    file = "/home/anouk/Documents/memoria/data/NC_014392.fasta";
+    string outfile = "/home/anouk/Documents/memoria/output/NC_014392_out.txt";
+    string test_output = "/home/anouk/Documents/memoria/output/NC_014392_test.txt";
+
+    vector<Crispr> genomeNC_014392;
+    vector<int> NC_014392_1_pos{145343, 145410, 145476, 145541, 145608, 145675, 145741, 145807, 145873, 145939, 146003,
+                                146068, 146134, 146200, 146266, 146332, 146398, 146464, 146531, 146599, 146665, 146732,
+                                146797, 146861, 146928, 146993, 147058, 147123, 147189, 147255, 147321, 147387, 147453,
+                                147518, 147584, 147650, 147716, 147780, 147845, 147911, 147977, 148041, 148107, 148174,
+                                148240, 148306, 148372, 148438, 148502, 148568, 148633, 148699, 148766, 148833, 148900,
+                                148966, 149033, 149099, 149165, 149232, 149298, 149363, 149428, 149494, 149559, 149624,
+                                149689, 149754, 149820, 149885, 149951, 150018, 150084, 150150, 150216, 150278, 150345,
+                                150411, 150477, 150543, 150610, 150677, 150743, 150809, 150876, 150939, 151006, 151071,
+                                151137, 151203, 151269, 151335, 151401, 151467, 151535, 151601, 151668, 151733, 151799,
+                                151867, 151933, 152001, 152067, 152133, 152200, 152266, 152332, 152399, 152465, 152531,
+                                152597, 152663, 152730, 152795, 152862, 152927, 152991, 153058, 153122, 153189, 153254,
+                                153319, 153385, 153450, 153516, 153581, 153646, 153711, 153777, 153842, 153907, 153972,
+                                154038, 154103, 154168, 154234, 154299, 154365, 154431, 154497, 154563, 154629, 154694,
+                                154760, 154825, 154891, 154956, 155022, 155087, 155153, 155218, 155283, 155349, 155415,
+                                155481, 155547, 155614, 155680, 155746, 155812, 155878, 155944, 156009, 156075, 156140,
+                                156206, 156271, 156336, 156402, 156468, 156535, 156602, 156668, 156734, 156801, 156866,
+                                156932, 156999
     };
-    Crispr NC_016148_1 = Crispr("NC_016148_1", 30, NC_016148_1_pos, "GATTCAATCGAACCGATACGGAATGGAAAC");
-    genomeNC_016148.emplace_back(NC_016148_1);
-    vector<int> NC_016148_2_pos{279012, 279079, 279145, 279212, 279279, 279345, 279411, 279476, 279542, 279607, 279673,
-                                279739, 279806, 279872, 279938, 280003, 280069, 280134, 280201, 280268, 280334, 280401,
-                                280467, 280535, 280602, 280669, 280734, 280799, 280865, 280930, 280996, 281061, 281130,
-                                281196, 281261, 281327, 281394, 281459, 281526, 281593, 281660, 281727, 281793, 281858,
-                                281924, 281990
+    Crispr NC_014392_1 = Crispr("NC_014392_1", 29, NC_014392_1_pos);
+    genomeNC_014392.emplace_back(NC_014392_1);
+    vector<int> NC_014392_2_pos{157108, 157176, 157241, 157307, 157373, 157438, 157503, 157569, 157635, 157701, 157768,
+                                157834, 157901, 157967, 158033
 
     };
-    Crispr NC_016148_2 = Crispr("NC_016148_2", 30, NC_016148_2_pos, "GTTTTAGACCTTCCTATAAGGGATGGAAAC");
-    genomeNC_016148.emplace_back(NC_016148_2);
-    run_test(genomeNC_016148, file, min_reps, test_output, outfile);
+    Crispr NC_014392_2 = Crispr("NC_014392_2", 29, NC_014392_2_pos);
+    genomeNC_014392.emplace_back(NC_014392_2);
+
+    vector<int> NC_014392_3_pos{160079, 160145, 160211, 160277};
+    Crispr NC_014392_3 = Crispr("NC_014392_3", 29, NC_014392_3_pos);
+    genomeNC_014392.emplace_back(NC_014392_3);
+
+    vector<int> NC_014392_4_pos{2433976, 2434043, 2434114, 2434180, 2434245, 2434311, 2434377, 2434444, 2434509,
+                                2434578, 2434644, 2434712, 2434778, 2434844, 2434912, 2434980, 2435048
+    };
+    Crispr NC_014392_4 = Crispr("NC_014392_4", 30, NC_014392_4_pos);
+    genomeNC_014392.emplace_back(NC_014392_4);
+
+    vector<int> NC_014392_5_pos{2443408, 2443475};
+    Crispr NC_014392_5 = Crispr("NC_014392_5", 30, NC_014392_5_pos);
+    genomeNC_014392.emplace_back(NC_014392_5);
+
+    vector<int> NC_014392_6_pos{2449154, 2449219, 2449285, 2449351, 2449418, 2449486, 2449554, 2449621, 2449688,
+                                2449756, 2449822, 2449888, 2449952, 2450018, 2450084, 2450150, 2450216, 2450282,
+                                2450347, 2450415, 2450482, 2450550, 2450615, 2450679
+    };
+    Crispr NC_014392_6 = Crispr("NC_014392_6", 30, NC_014392_6_pos);
+    genomeNC_014392.emplace_back(NC_014392_6);
+
+    vector<int> NC_014392_7_pos{2460383, 2460448, 2460514, 2460579, 2460646, 2460711, 2460777, 2460845, 2460910,
+                                2460977, 2461043, 2461109, 2461175, 2461243, 2461309, 2461375, 2461442, 2461510,
+                                2461576, 2461642, 2461709, 2461777, 2461849
+    };
+    Crispr NC_014392_7 = Crispr("NC_014392_7", 30, NC_014392_7_pos);
+    genomeNC_014392.emplace_back(NC_014392_7);
+    vector<int> NC_014392_8_pos{2464720, 2464789, 2464856, 2464924, 2464990, 2465058, 2465126, 2465193, 2465260,
+                                2465326, 2465392, 2465459, 2465525, 2465591, 2465657, 2465723, 2465789, 2465855,
+                                2465921, 2465987, 2466055, 2466120, 2466186, 2466251, 2466317, 2466383, 2466452,
+                                2466520, 2466586, 2466650
+    };
+    Crispr NC_014392_8 = Crispr("NC_014392_8", 30, NC_014392_8_pos);
+    genomeNC_014392.emplace_back(NC_014392_8);
+    vector<int> NC_014392_9_pos{2477566, 2477631, 2477699, 2477767, 2477833, 2477899, 2477965, 2478033, 2478099,
+                                2478165, 2478230, 2478296, 2478364, 2478430, 2478495, 2478559, 2478626, 2478694,
+                                2478762, 2478828
+    };
+    Crispr NC_014392_9 = Crispr("NC_014392_9", 30, NC_014392_9_pos);
+    genomeNC_014392.emplace_back(NC_014392_9);
+    vector<int> NC_014392_10_pos{2486476, 2486542, 2486608, 2486676, 2486744, 2486810, 2486878
+    };
+    Crispr NC_014392_10 = Crispr("NC_014392_10", 30, NC_014392_10_pos);
+    genomeNC_014392.emplace_back(NC_014392_10);
+
+    run_test(genomeNC_014392, file, min_reps, test_output, outfile);
 
 
 }
