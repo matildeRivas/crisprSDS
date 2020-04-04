@@ -3,14 +3,14 @@ vector<Crispr> genome013210;
                               124195, 124256, 124317, 124378, 124439, 124500, 124561, 124622, 124683, 124744, 124805,
                               124866, 124927
     };
-    Crispr NC_013210 = Crispr("NC_013210", 29, NC_013210_pos, "GTGTTCCCCGCACACGCGGGGATGAACCG");
+    Crispr NC_013210 = Crispr("NC_013210", 29, NC_013210_pos);
     genome013210.emplace_back(NC_013210);
 
 ------------------------------------------------------------------------------------------------------------------------
 
 file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
-    string outfile = "/home/anouk/Documents/memoria/output/NC_016148_out.txt";
-    string test_output = "/home/anouk/Documents/memoria/output/NC_016148_test.txt";
+    string outfile = "/home/anouk/Documents/memoria/data/output/NC_016148_out.txt";
+    string test_output = "/home/anouk/Documents/memoria/data/output/NC_016148_test.txt";
 
     vector<Crispr> genomeNC_016148;
     vector<int> NC_016148_1_pos{256316, 256379, 256439, 256501, 256564, 256625, 256687, 256752, 256819, 256883, 256947,
@@ -32,8 +32,8 @@ file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
 ------------------------------------------------------------------------------------------------------------------------
 
 file = "/home/anouk/Documents/memoria/data/NC_013124.fasta";
-    string outfile = "/home/anouk/Documents/memoria/output/NC_013124_out.txt";
-    string test_output = "/home/anouk/Documents/memoria/output/NC_013124_test.txt";
+    string outfile = "/home/anouk/Documents/memoria/data/output/NC_013124_out.txt";
+    string test_output = "/home/anouk/Documents/memoria/data/output/NC_013124_test.txt";
 
     vector<Crispr> genomeNC_013124;
     vector<int> NC_NC_013124_2_pos{996601, 996662, 996723, 996784, 996845, 996906, 996967, 997028, 997089, 997150,
@@ -41,7 +41,7 @@ file = "/home/anouk/Documents/memoria/data/NC_013124.fasta";
                                    997822, 997883, 997944, 998005, 998066, 998127, 998188, 998249
 
     };
-    Crispr NC_013124_2 = Crispr("NC_013124_2", 28, NC_NC_013124_2_pos, "GGATCACCCCCGCCTGCGCGGGGAGCAC");
+    Crispr NC_013124_2 = Crispr("NC_013124_2", 28, NC_NC_013124_2_pos);
     genomeNC_013124.emplace_back(NC_013124_2);
     vector<int> NC_NC_013124_3_pos{1000880, 1000941, 1001002, 1001063, 1001124, 1001185, 1001246, 1001307, 1001368,
                                    1001429, 1001491, 1001552, 1001613, 1001674, 1001735, 1001796, 1001857, 1001918,
@@ -51,14 +51,14 @@ file = "/home/anouk/Documents/memoria/data/NC_013124.fasta";
 
 
     };
-    Crispr NC_013124_3 = Crispr("NC_013124_3", 28, NC_NC_013124_3_pos, "GGATCACCCCCGCCTGCGCGGGGAGCAC");
+    Crispr NC_013124_3 = Crispr("NC_013124_3", 28, NC_NC_013124_3_pos);
     genomeNC_013124.emplace_back(NC_013124_3);
 
 ------------------------------------------------------------------------------------------------------------------------
 
-file = "/home/anouk/Documents/memoria/data/NC_014392.fasta";
-    string outfile = "/home/anouk/Documents/memoria/output/NC_014392_out.txt";
-    string test_output = "/home/anouk/Documents/memoria/output/NC_014392_test.txt";
+    string file = "/home/anouk/Documents/memoria/data/NC_014392.fasta";
+    string outfile = "/home/anouk/Documents/memoria/data/output/NC_014392_out.txt";
+    string test_output = "/home/anouk/Documents/memoria/data/output/NC_014392_test.txt";
 
     vector<Crispr> genomeNC_014392;
     vector<int> NC_014392_1_pos{145343, 145410, 145476, 145541, 145608, 145675, 145741, 145807, 145873, 145939, 146003,
@@ -155,7 +155,42 @@ vector<Crispr> genome23;
 
     genome23.emplace_back(NC_015138_1);
 
+------------------------------------------------------------------------------------------------------------------------
 
+vector<Crispr> NC_015138;
+    vector<int> NC_015138_1_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004,
+                                301070,
+                                301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796,
+                                301862,
+                                301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589,
+                                302655,
+                                302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
+                                303445};
+    Crispr NC_015138_1 = Crispr("NC_015138_1", 36, NC_015138_1_pos);
+    NC_015138.emplace_back(NC_015138_1);
+    vector<int> NC_015138_2_pos{304387, 304453};
+    Crispr NC_015138_2 = Crispr("NC_015138_2", 36, NC_015138_2_pos);
+    NC_015138.emplace_back(NC_015138_2);
+    vector<int> NC_015138_3_pos{305395, 305462, 305527, 305593, 305659, 305725, 305791, 305857, 305923, 305989, 306055,
+                                306121, 306187};
+    Crispr NC_015138_3 = Crispr("NC_015138_3", 36, NC_015138_3_pos);
+    NC_015138.emplace_back(NC_015138_3);
+    vector<int> NC_015138_5_pos{1785060, 1785126};
+    Crispr NC_015138_5 = Crispr("NC_015138_5", 32, NC_015138_5_pos);
+    NC_015138.emplace_back(NC_015138_5);
+    vector<int> NC_015138_6_pos{1785247, 1785315, 1785381, 1785448, 1785514, 1785581, 1785648, 1785715, 1785782,
+                                1785848, 1785915, 1785982, 1786050, 1786118, 1786186, 1786252, 1786318, 1786384,
+                                1786449, 1786515, 1786583};
+    Crispr NC_015138_6 = Crispr("NC_015138_6", 32, NC_015138_6_pos);
+    NC_015138.emplace_back(NC_015138_6);
+    vector<int> NC_015138_7_pos{4426974, 4427041, 4427108, 4427174, 4427241, 4427307, 4427375, 4427442, 4427509,
+                                4427575, 4427641, 4427707, 4427773, 4427841, 4427909, 4427977, 4428044, 4428112,
+                                4428180, 4428246, 4428313, 4428379, 4428444, 4428510, 4428576, 4428643, 4428708,
+                                4428774, 4428840, 4428905, 4428972, 4429038, 4429106, 4429181, 4429249, 4429317,
+                                4429384, 4429451, 4429518, 4429585, 4429651, 4429717, 4429784, 4429851, 4429917,
+                                4429983, 4430050, 4430117, 4430183};
+    Crispr NC_015138_7 = Crispr("NC_015138_7", 32, NC_015138_7_pos);
+    NC_015138.emplace_back(NC_015138_7);
 
 vector<Crispr> genome;
 vector<int> _pos{};
