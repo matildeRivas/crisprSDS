@@ -51,7 +51,7 @@ vector<tuple<int, int, int>> select_candidates(cst_sada<> cst, int min_reps) {
     vector<tuple<int, int, int>> candidate_list;
     // iterate over all nodes
     for (auto it = cst.begin(); it != cst.end(); ++it) {
-        if (cst.depth(*it) > 1) {  // node visited for the first time
+        if (cst.depth(*it) > 1 && it.visit() == 1) {  // node visited for the first time
             auto v = *it;       // get the node by dereferencing the iterator
             // if depth of node is more than 1 and label has more than min_rep occs
             if (cst.size(v) >= min_reps) {
