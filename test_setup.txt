@@ -8,7 +8,7 @@ vector<Crispr> genome013210;
 
 ------------------------------------------------------------------------------------------------------------------------
 
-file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
+string file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
     string outfile = "/home/anouk/Documents/memoria/data/output/NC_016148_out.txt";
     string test_output = "/home/anouk/Documents/memoria/data/output/NC_016148_test.txt";
 
@@ -31,7 +31,7 @@ file = "/home/anouk/Documents/memoria/data/NC_016148.fasta";
 
 ------------------------------------------------------------------------------------------------------------------------
 
-file = "/home/anouk/Documents/memoria/data/NC_013124.fasta";
+string file = "/home/anouk/Documents/memoria/data/NC_013124.fasta";
     string outfile = "/home/anouk/Documents/memoria/data/output/NC_013124_out.txt";
     string test_output = "/home/anouk/Documents/memoria/data/output/NC_013124_test.txt";
 

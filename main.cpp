@@ -51,18 +51,18 @@ vector<tuple<int, int, int>> select_candidates(cst_sada<> cst, int min_reps) {
     vector<tuple<int, int, int>> candidate_list;
     // iterate over all nodes
     for (auto it = cst.begin(); it != cst.end(); ++it) {
-        if (cst.depth(*it) > 1 && it.visit() == 1) {  // node visited for the first time
+        if (cst.depth(*it) >= MIN_LENGTH && it.visit() == 1) {  // node visited for the first time
             auto v = *it;       // get the node by dereferencing the iterator
             // if depth of node is more than 1 and label has more than min_rep occs
-            if (cst.size(v) >= min_reps) {
+            if (cst.depth(v) <= MAX_LENGTH) {
                 // process node
                 auto candidate = extract(cst, v);
                 // if candidate length is within desired limits
-                if (candidate.length() >= MIN_LENGTH && candidate.length() <= MAX_LENGTH) {
-                    // string depth, leftmost leaf in SA and rightmost leaf in SA
-                    // we can obtain the number of occs using rb-lb+1
-                    candidate_list.emplace_back(cst.depth(v), cst.lb(v), cst.rb(v));
-                }
+                //if (candidate.length() >= MIN_LENGTH && candidate.length() <= MAX_LENGTH) {
+                // string depth, leftmost leaf in SA and rightmost leaf in SA
+                // we can obtain the number of occs using rb-lb+1
+                candidate_list.emplace_back(cst.depth(v), cst.lb(v), cst.rb(v));
+                //}
             } else { // skip the subtree otherwise
                 it.skip_subtree();
             }
@@ -110,56 +110,38 @@ vector<tuple<int, int, int, int>> validate(tuple<int, int, int> candidate, int_v
     int len = get<0>(candidate);
     auto lb = get<1>(candidate);
     auto rb = get<2>(candidate);
-    cout << len << " lb: " << lb << " rb: " << rb << endl;
-    vector<tuple<int, int>> cont_pairs;
-    // for each candidate in group
-    for (int c = lb; c <= rb; c++) {
-        int sa_value = sa[c];
-        cout << "searching value after " << sa_value << " in range: " << sa_value + len + MIN_SPACER_LENGTH << " "
-             << sa_value + len + MAX_SPACER_LENGTH << endl;
-        // search for next repeat in group that's within spacer range
-        auto rs = wt.range_search_2d(lb, rb, sa_value + len + MIN_SPACER_LENGTH,
-                                     sa_value + len + MAX_SPACER_LENGTH + 2);
-        //cout << "values found " << get<0>(rs) << endl;
-        if (get<0>(rs) > 0) {
-            for (int k = 0; k < get<0>(rs); k++) {
-                // tuple (position, value)
-                auto c = get<1>(rs).at(k);
-                cont_pairs.emplace_back(sa_value, (int) get<1>(rs).at(k).second);
-                // cout << sa_value << " to " << get<1>(rs).at(k).second << endl;
-            }
-        }
-    }
-    sort(cont_pairs.begin(), cont_pairs.end(), comp_by_second);
-    sort(cont_pairs.begin(), cont_pairs.end());
-
-    // key is the position of last occurence in chain so far
-    // value stores number of occs, pos of first and last found so far
-    std::map<int, tuple<int, int, int>>
-            chain_map;
-    for (auto &p : cont_pairs) {
-        int from = get<0>(p);
-        int to = get<1>(p);
-        // check if there's a chain that ends in "from" value
-        if (chain_map.count(from)) {
-            //grab the value from that chain, update number of occs and last value, and store in "to"
-            auto prev = chain_map[from];
-            int occs = get<0>(prev);
-            int first_occ = get<1>(prev);
-            chain_map[to] = tuple<int, int, int>(occs + 1, first_occ, to);
-            chain_map.erase(from);
-        } else {
-            // add new start of chain in "to" with "from" as first occurence
-            chain_map[to] = tuple<int, int, int>(2, from, to);
-        }
-    }
     vector<tuple<int, int, int, int>> crispr_list;
-    for (auto &x : chain_map) {
-        // for each CRISPR we store the number of repeats, their length, start and end position
-        tuple<int, int, int, int> crispr = tuple<int, int, int, int>(get<0>(x.second), len, get<1>(x.second) + 1,
-                                                                     get<2>(x.second) + 1);
-        crispr_list.emplace_back(crispr);
+    auto rs = wt.range_search_2d(lb, rb, 0, sa.size());
+    auto points = get<1>(rs);
+    int number_of_points = get<0>(rs);
+    //obtener primer valor y meterlo en cadena
+    tuple<int, int, int, int> current_crispr = {1, len, (int) points.at(0).second, (int) points.at(0).second};
+    //ir extrayendo valores, si el valor en cadena empieza entre y-s1-l e y-s2-l entonces añadir a cadena (reps+=1 y actualizar última occ)
+    for (int k = 1; k < number_of_points; k++) {
+        int c = points.at(k).second;
+        if (c >= get<3>(current_crispr) + len + MIN_SPACER_LENGTH and
+            c <= get<3>(current_crispr) + len + MAX_SPACER_LENGTH + 2) {
+            get<0>(current_crispr) = get<0>(current_crispr) + 1;
+            get<3>(current_crispr) = c;
+        } else {
+            if (get<0>(current_crispr) > 1) {
+                get<2>(current_crispr) = get<2>(current_crispr) + 1;
+                get<3>(current_crispr) += 1;
+                crispr_list.emplace_back(current_crispr);
+            }
+            current_crispr = {1, len, c, c};
+        }
     }
+    if (get<0>(current_crispr) > 1) {
+        get<2>(current_crispr) = get<2>(current_crispr) + 1;
+        get<3>(current_crispr) += 1;
+        crispr_list.emplace_back(current_crispr);
+    }
+
+    //si no, entonces si la cadena tiene largo > 1, añadir a lista final (si reps > 1, o sea primer item)
+    //empezar nueva cadena
+
+    //remember to add 1 to positions
     return crispr_list;
 }
 
@@ -181,7 +163,7 @@ find_crispr(string filename, int min_reps, tuple<double, double, double> &time, 
     candidate_list = select_candidates(cst, min_reps);
     std::chrono::steady_clock::time_point end_selection = std::chrono::steady_clock::now();
 
-    std::chrono::steady_clock::time_point begin_prefilter = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point begin_verification = std::chrono::steady_clock::now();
     //cout << sa << endl;
     vector<tuple<int, int, int, int>> pre_filtered_candidates;
     vector<tuple<int, int, int, int>> filtered_candidates;
@@ -191,7 +173,7 @@ find_crispr(string filename, int min_reps, tuple<double, double, double> &time, 
         for (auto &cr : validate(candidate_list[i], sa, wt))
             pre_filtered_candidates.emplace_back(cr);
     }
-    std::chrono::steady_clock::time_point end_prefilter = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point end_verification = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point begin_filter = std::chrono::steady_clock::now();
     // deletes chains that are contained in another one, CHECK length
     if (pre_filtered_candidates.size()) {
@@ -213,8 +195,7 @@ find_crispr(string filename, int min_reps, tuple<double, double, double> &time, 
     std::chrono::steady_clock::time_point end_filter = std::chrono::steady_clock::now();
     //end time
     get<0>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_selection - begin_selection).count();
-    get<1>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end_prefilter - begin_prefilter).count();
+    get<1>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_verification - begin_verification).count();
     get<2>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_filter - begin_filter).count();
     get<0>(size) = size_in_bytes(cst); //suffix tree
     get<1>(size) = size_in_bytes(wt); //wavelet
@@ -247,8 +228,8 @@ void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string
     detected_crispr = find_crispr(filename, min_reps, time, size);
     std::stringstream ss;
     ss << "number of crispr\treported crispr\n" << ground_truth.size() << "\t" << detected_crispr.size() << "\n";
-    ss << "selection time\tfiltering time\n";
-    ss << get<0>(time) << "\t" << get<1>(time) + get<2>(time) << "\n";
+    ss << "selection time\tvalidation time\tfiltering time\n";
+    ss << get<0>(time) << "\t" << get<1>(time) << "\t" << get<2>(time) << "\n";
     ss << "suffix tree size\twavelet tree size\tsuffix array size\tcandidate list size\tcrispr list size\n";
     ss << get<0>(size) << "\t" << get<1>(size) << "\t" << get<2>(size) << "\t" << get<3>(size) << "\t" << get<4>(size)
        << "\n";
@@ -274,8 +255,8 @@ void memory_test(string filename, int min_reps, string test_outfilename) {
     tuple<int, int, int, int, int> size;
     detected_crispr = find_crispr(filename, min_reps, time, size);
     std::stringstream ss;
-    ss << "selection time\tfiltering time\n";
-    ss << get<0>(time) << "\t" << get<1>(time) + get<2>(time) << "\n";
+    ss << "selection time\tvalidation time\tfiltering time\n";
+    ss << get<0>(time) << "\t" << get<1>(time) << "\t" << get<2>(time) << "\n";
     ss << "suffix tree size\twavelet tree size\tsuffix array size\tcandidate list size\tcrispr list size\n";
     ss << get<0>(size) << "\t" << get<1>(size) << "\t" << get<2>(size) << "\t" << get<3>(size) << "\t" << get<4>(size)
        << "\n";
@@ -307,82 +288,45 @@ int main(int argc, char *argv[]) {
     }*/
     tuple<double, double, double> time;
     tuple<int, int, int, int, int> size;
-    string file = "/home/anouk/Documents/memoria/data/NC_014392.fasta";
-    string outfile = "/home/anouk/Documents/memoria/data/output/NC_014392_out2.txt";
-    string test_output = "/home/anouk/Documents/memoria/data/output/NC_014392_test2.txt";
+    string file = "/home/anouk/Documents/memoria/data/NC_015138.fasta";
+    string outfile = "/home/anouk/Documents/memoria/data/output/NC_015138_out_nf.txt";
+    string test_output = "/home/anouk/Documents/memoria/data/output/NC_015138_test_nf.txt";
 
-    vector<Crispr> genomeNC_014392;
-    vector<int> NC_014392_1_pos{145343, 145410, 145476, 145541, 145608, 145675, 145741, 145807, 145873, 145939, 146003,
-                                146068, 146134, 146200, 146266, 146332, 146398, 146464, 146531, 146599, 146665, 146732,
-                                146797, 146861, 146928, 146993, 147058, 147123, 147189, 147255, 147321, 147387, 147453,
-                                147518, 147584, 147650, 147716, 147780, 147845, 147911, 147977, 148041, 148107, 148174,
-                                148240, 148306, 148372, 148438, 148502, 148568, 148633, 148699, 148766, 148833, 148900,
-                                148966, 149033, 149099, 149165, 149232, 149298, 149363, 149428, 149494, 149559, 149624,
-                                149689, 149754, 149820, 149885, 149951, 150018, 150084, 150150, 150216, 150278, 150345,
-                                150411, 150477, 150543, 150610, 150677, 150743, 150809, 150876, 150939, 151006, 151071,
-                                151137, 151203, 151269, 151335, 151401, 151467, 151535, 151601, 151668, 151733, 151799,
-                                151867, 151933, 152001, 152067, 152133, 152200, 152266, 152332, 152399, 152465, 152531,
-                                152597, 152663, 152730, 152795, 152862, 152927, 152991, 153058, 153122, 153189, 153254,
-                                153319, 153385, 153450, 153516, 153581, 153646, 153711, 153777, 153842, 153907, 153972,
-                                154038, 154103, 154168, 154234, 154299, 154365, 154431, 154497, 154563, 154629, 154694,
-                                154760, 154825, 154891, 154956, 155022, 155087, 155153, 155218, 155283, 155349, 155415,
-                                155481, 155547, 155614, 155680, 155746, 155812, 155878, 155944, 156009, 156075, 156140,
-                                156206, 156271, 156336, 156402, 156468, 156535, 156602, 156668, 156734, 156801, 156866,
-                                156932, 156999
-    };
-    Crispr NC_014392_1 = Crispr("NC_014392_1", 29, NC_014392_1_pos);
-    genomeNC_014392.emplace_back(NC_014392_1);
-    vector<int> NC_014392_2_pos{157108, 157176, 157241, 157307, 157373, 157438, 157503, 157569, 157635, 157701, 157768,
-                                157834, 157901, 157967, 158033
+    vector<Crispr> NC_015138;
+    vector<int> NC_015138_1_pos{300343, 300409, 300475, 300541, 300607, 300673, 300739, 300806, 300872, 300938, 301004,
+                                301070,
+                                301136, 301202, 301268, 301334, 301400, 301466, 301532, 301598, 301664, 301730, 301796,
+                                301862,
+                                301928, 301995, 302061, 302127, 302193, 302259, 302325, 302391, 302457, 302523, 302589,
+                                302655,
+                                302721, 302786, 302852, 302918, 302984, 303050, 303115, 303181, 303247, 303313, 303379,
+                                303445};
+    Crispr NC_015138_1 = Crispr("NC_015138_1", 36, NC_015138_1_pos);
+    NC_015138.emplace_back(NC_015138_1);
+    vector<int> NC_015138_2_pos{304387, 304453};
+    Crispr NC_015138_2 = Crispr("NC_015138_2", 36, NC_015138_2_pos);
+    NC_015138.emplace_back(NC_015138_2);
+    vector<int> NC_015138_3_pos{305395, 305462, 305527, 305593, 305659, 305725, 305791, 305857, 305923, 305989, 306055,
+                                306121, 306187};
+    Crispr NC_015138_3 = Crispr("NC_015138_3", 36, NC_015138_3_pos);
+    NC_015138.emplace_back(NC_015138_3);
+    vector<int> NC_015138_5_pos{1785060, 1785126};
+    Crispr NC_015138_5 = Crispr("NC_015138_5", 32, NC_015138_5_pos);
+    NC_015138.emplace_back(NC_015138_5);
+    vector<int> NC_015138_6_pos{1785247, 1785315, 1785381, 1785448, 1785514, 1785581, 1785648, 1785715, 1785782,
+                                1785848, 1785915, 1785982, 1786050, 1786118, 1786186, 1786252, 1786318, 1786384,
+                                1786449, 1786515, 1786583};
+    Crispr NC_015138_6 = Crispr("NC_015138_6", 32, NC_015138_6_pos);
+    NC_015138.emplace_back(NC_015138_6);
+    vector<int> NC_015138_7_pos{4426974, 4427041, 4427108, 4427174, 4427241, 4427307, 4427375, 4427442, 4427509,
+                                4427575, 4427641, 4427707, 4427773, 4427841, 4427909, 4427977, 4428044, 4428112,
+                                4428180, 4428246, 4428313, 4428379, 4428444, 4428510, 4428576, 4428643, 4428708,
+                                4428774, 4428840, 4428905, 4428972, 4429038, 4429106, 4429181, 4429249, 4429317,
+                                4429384, 4429451, 4429518, 4429585, 4429651, 4429717, 4429784, 4429851, 4429917,
+                                4429983, 4430050, 4430117, 4430183};
+    Crispr NC_015138_7 = Crispr("NC_015138_7", 32, NC_015138_7_pos);
+    NC_015138.emplace_back(NC_015138_7);
 
-    };
-    Crispr NC_014392_2 = Crispr("NC_014392_2", 29, NC_014392_2_pos);
-    genomeNC_014392.emplace_back(NC_014392_2);
+    run_test(NC_015138, file, min_reps, test_output, outfile);
 
-    vector<int> NC_014392_3_pos{160079, 160145, 160211, 160277};
-    Crispr NC_014392_3 = Crispr("NC_014392_3", 29, NC_014392_3_pos);
-    genomeNC_014392.emplace_back(NC_014392_3);
-
-    vector<int> NC_014392_4_pos{2433976, 2434043, 2434114, 2434180, 2434245, 2434311, 2434377, 2434444, 2434509,
-                                2434578, 2434644, 2434712, 2434778, 2434844, 2434912, 2434980, 2435048
-    };
-    Crispr NC_014392_4 = Crispr("NC_014392_4", 30, NC_014392_4_pos);
-    genomeNC_014392.emplace_back(NC_014392_4);
-
-    vector<int> NC_014392_5_pos{2443408, 2443475};
-    Crispr NC_014392_5 = Crispr("NC_014392_5", 30, NC_014392_5_pos);
-    genomeNC_014392.emplace_back(NC_014392_5);
-
-    vector<int> NC_014392_6_pos{2449154, 2449219, 2449285, 2449351, 2449418, 2449486, 2449554, 2449621, 2449688,
-                                2449756, 2449822, 2449888, 2449952, 2450018, 2450084, 2450150, 2450216, 2450282,
-                                2450347, 2450415, 2450482, 2450550, 2450615, 2450679
-    };
-    Crispr NC_014392_6 = Crispr("NC_014392_6", 30, NC_014392_6_pos);
-    genomeNC_014392.emplace_back(NC_014392_6);
-
-    vector<int> NC_014392_7_pos{2460383, 2460448, 2460514, 2460579, 2460646, 2460711, 2460777, 2460845, 2460910,
-                                2460977, 2461043, 2461109, 2461175, 2461243, 2461309, 2461375, 2461442, 2461510,
-                                2461576, 2461642, 2461709, 2461777, 2461849
-    };
-    Crispr NC_014392_7 = Crispr("NC_014392_7", 30, NC_014392_7_pos);
-    genomeNC_014392.emplace_back(NC_014392_7);
-    vector<int> NC_014392_8_pos{2464720, 2464789, 2464856, 2464924, 2464990, 2465058, 2465126, 2465193, 2465260,
-                                2465326, 2465392, 2465459, 2465525, 2465591, 2465657, 2465723, 2465789, 2465855,
-                                2465921, 2465987, 2466055, 2466120, 2466186, 2466251, 2466317, 2466383, 2466452,
-                                2466520, 2466586, 2466650
-    };
-    Crispr NC_014392_8 = Crispr("NC_014392_8", 30, NC_014392_8_pos);
-    genomeNC_014392.emplace_back(NC_014392_8);
-    vector<int> NC_014392_9_pos{2477566, 2477631, 2477699, 2477767, 2477833, 2477899, 2477965, 2478033, 2478099,
-                                2478165, 2478230, 2478296, 2478364, 2478430, 2478495, 2478559, 2478626, 2478694,
-                                2478762, 2478828
-    };
-    Crispr NC_014392_9 = Crispr("NC_014392_9", 30, NC_014392_9_pos);
-    genomeNC_014392.emplace_back(NC_014392_9);
-    vector<int> NC_014392_10_pos{2486476, 2486542, 2486608, 2486676, 2486744, 2486810, 2486878
-    };
-    Crispr NC_014392_10 = Crispr("NC_014392_10", 30, NC_014392_10_pos);
-    genomeNC_014392.emplace_back(NC_014392_10);
-
-    run_test(genomeNC_014392, file, min_reps, test_output, outfile);
 }
