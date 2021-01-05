@@ -47,22 +47,21 @@ void write_output(vector<tuple<int, int, int, int>> detected_crispr, string outf
 
 
 //selects repeats that meet basic criteria
-vector<tuple<int, int, int>> select_candidates(cst_sada<> cst, int min_reps) {
+vector<tuple<int, int, int>> select_candidates(cst_sada<> cst) {
     vector<tuple<int, int, int>> candidate_list;
     // iterate over all nodes
     for (auto it = cst.begin(); it != cst.end(); ++it) {
-        if (cst.depth(*it) > 1 && it.visit() == 1) {  // node visited for the first time
+        if (cst.depth(*it) >= MIN_LENGTH && it.visit() == 1) {  // node visited for the first time
             auto v = *it;       // get the node by dereferencing the iterator
             // if depth of node is more than 1 and label has more than min_rep occs
-            if (cst.size(v) >= min_reps) {
+            if (cst.depth(v) <= MAX_LENGTH) {
                 // process node
-                auto candidate = extract(cst, v);
                 // if candidate length is within desired limits
-                if (candidate.length() >= MIN_LENGTH && candidate.length() <= MAX_LENGTH) {
-                    // string depth, leftmost leaf in SA and rightmost leaf in SA
-                    // we can obtain the number of occs using rb-lb+1
-                    candidate_list.emplace_back(cst.depth(v), cst.lb(v), cst.rb(v));
-                }
+                //if (candidate.length() >= MIN_LENGTH && candidate.length() <= MAX_LENGTH) {
+                // string depth, leftmost leaf in SA and rightmost leaf in SA
+                // we can obtain the number of occs using rb-lb+1
+                candidate_list.emplace_back(cst.depth(v), cst.lb(v), cst.rb(v));
+                //}
             } else { // skip the subtree otherwise
                 it.skip_subtree();
             }
@@ -110,62 +109,45 @@ vector<tuple<int, int, int, int>> validate(tuple<int, int, int> candidate, int_v
     int len = get<0>(candidate);
     auto lb = get<1>(candidate);
     auto rb = get<2>(candidate);
-    //cout << len << " lb: " << lb << " rb: " << rb << endl;
-    vector<tuple<int, int>> cont_pairs;
-    // for each candidate in group
-    for (int c = lb; c <= rb; c++) {
-        int sa_value = sa[c];
-        // cout << "searching value after " << sa_value << " in range: " << sa_value + len + MIN_SPACER_LENGTH << " "
-        //     << sa_value + len + MAX_SPACER_LENGTH << endl;
-        // search for next repeat in group that's within spacer range
-        auto rs = wt.range_search_2d(lb, rb, sa_value + len + MIN_SPACER_LENGTH,
-                                     sa_value + len + MAX_SPACER_LENGTH);
-        //cout << "values found " << get<0>(rs) << endl;
-        if (get<0>(rs) > 0) {
-            for (int k = 0; k < get<0>(rs); k++) {
-                // tuple (position, value)
-                auto c = get<1>(rs).at(k);
-                cont_pairs.emplace_back(sa_value, (int) get<1>(rs).at(k).second);
-                // cout << sa_value << " to " << get<1>(rs).at(k).second << endl;
-            }
-        }
-    }
-    sort(cont_pairs.begin(), cont_pairs.end(), comp_by_second);
-    sort(cont_pairs.begin(), cont_pairs.end());
-
-    // key is the position of last occurence in chain so far
-    // value stores number of occs, pos of first and last found so far
-    std::map<int, tuple<int, int, int>>
-            chain_map;
-    for (auto &p : cont_pairs) {
-        int from = get<0>(p);
-        int to = get<1>(p);
-        // check if there's a chain that ends in "from" value
-        if (chain_map.count(from)) {
-            //grab the value from that chain, update number of occs and last value, and store in "to"
-            auto prev = chain_map[from];
-            int occs = get<0>(prev);
-            int first_occ = get<1>(prev);
-            chain_map[to] = tuple<int, int, int>(occs + 1, first_occ, to);
-            chain_map.erase(from);
-        } else {
-            // add new start of chain in "to" with "from" as first occurence
-            chain_map[to] = tuple<int, int, int>(2, from, to);
-        }
-    }
     vector<tuple<int, int, int, int>> crispr_list;
-    for (auto &x : chain_map) {
-        // for each CRISPR we store the number of repeats, their length, start and end position
-        tuple<int, int, int, int> crispr = tuple<int, int, int, int>(get<0>(x.second), len, get<1>(x.second) + 1,
-                                                                     get<2>(x.second) + 1);
-        crispr_list.emplace_back(crispr);
+    auto rs = wt.range_search_2d(lb, rb, 0, sa.size());
+    int number_of_points = get<0>(rs);
+    auto points = get<1>(rs);
+    //obtener primer valor y meterlo en cadena
+    tuple<int, int, int, int> current_crispr = {1, len, (int) points.at(0).second, (int) points.at(0).second};
+    //ir extrayendo valores, si el valor en cadena empieza entre y-s1-l e y-s2-l entonces añadir a cadena (reps+=1 y actualizar última occ)
+    for (int k = 1; k < number_of_points; k++) {
+        int c = points.at(k).second;
+        int latest_pos = get<3>(current_crispr);
+        if (c >= latest_pos + len + MIN_SPACER_LENGTH and
+            c <= latest_pos + len + MAX_SPACER_LENGTH + 2) {
+            get<0>(current_crispr) = get<0>(current_crispr) + 1;
+            get<3>(current_crispr) = c;
+        }
+        //si no, entonces si la cadena tiene largo > 1, añadir a lista final (si reps > 1, o sea primer item)
+        //empezar nueva cadena
+        else {
+            if (get<0>(current_crispr) > 1) {
+                get<2>(current_crispr) = get<2>(current_crispr) + 1;
+                get<3>(current_crispr) += 1;
+                crispr_list.emplace_back(current_crispr);
+            }
+            current_crispr = {1, len, c, c};
+        }
     }
+    if (get<0>(current_crispr) > 1) {
+        get<2>(current_crispr) = get<2>(current_crispr) + 1;
+        get<3>(current_crispr) += 1;
+        crispr_list.emplace_back(current_crispr);
+    }
+
+    //remember to add 1 to positions
     return crispr_list;
 }
 
 
 vector<tuple<int, int, int, int>>
-find_crispr(string filename, int min_reps, tuple<double, double, double> &time, tuple<int, int, int, int, int> &size) {
+find_crispr(string filename, tuple<double, double, double> &time, tuple<int, int, int, int, int> &size) {
     // construct needed structures
     cst_sada<> cst;
     construct(cst, filename, 1);
@@ -178,10 +160,10 @@ find_crispr(string filename, int min_reps, tuple<double, double, double> &time, 
     // a candidate is a tuple: text length, lb, rb
     vector<tuple<int, int, int>> candidate_list;
     // select candidates that meet basic criteria
-    candidate_list = select_candidates(cst, min_reps);
+    candidate_list = select_candidates(cst);
     std::chrono::steady_clock::time_point end_selection = std::chrono::steady_clock::now();
 
-    std::chrono::steady_clock::time_point begin_prefilter = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point begin_verification = std::chrono::steady_clock::now();
     //cout << sa << endl;
     vector<tuple<int, int, int, int>> pre_filtered_candidates;
     vector<tuple<int, int, int, int>> filtered_candidates;
@@ -191,8 +173,7 @@ find_crispr(string filename, int min_reps, tuple<double, double, double> &time, 
         for (auto &cr : validate(candidate_list[i], sa, wt))
             pre_filtered_candidates.emplace_back(cr);
     }
-    std::chrono::steady_clock::time_point end_prefilter = std::chrono::steady_clock::now();
-    write_output(pre_filtered_candidates, "/home/anouk/Documents/memoria/output/NC_014392preout.txt");
+    std::chrono::steady_clock::time_point end_verification = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point begin_filter = std::chrono::steady_clock::now();
     // deletes chains that are contained in another one, CHECK length
     if (pre_filtered_candidates.size()) {
@@ -214,8 +195,7 @@ find_crispr(string filename, int min_reps, tuple<double, double, double> &time, 
     std::chrono::steady_clock::time_point end_filter = std::chrono::steady_clock::now();
     //end time
     get<0>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_selection - begin_selection).count();
-    get<1>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end_prefilter - begin_prefilter).count();
+    get<1>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_verification - begin_verification).count();
     get<2>(time) = std::chrono::duration_cast<std::chrono::milliseconds>(end_filter - begin_filter).count();
     get<0>(size) = size_in_bytes(cst); //suffix tree
     get<1>(size) = size_in_bytes(wt); //wavelet
@@ -240,16 +220,16 @@ void verify_crispr(Crispr &crispr, vector<tuple<int, int, int, int>> detected_cr
 //por cada crispr voy a tener quee hacer una linea con su ID, la cantidad de reps que tiene,
 // las parcialmente detectadas y la cantidad detecada. Luego puedo procesar esta informacion de otra manera
 
-void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string test_outfilename, string output_file) {
+void run_test(vector<Crispr> ground_truth, string filename, string test_outfilename, string output_file) {
     // run algorithm to find crispr
     vector<tuple<int, int, int, int>> detected_crispr;
     tuple<double, double, double> time;
     tuple<int, int, int, int, int> size;
-    detected_crispr = find_crispr(filename, min_reps, time, size);
+    detected_crispr = find_crispr(filename, time, size);
     std::stringstream ss;
     ss << "number of crispr\treported crispr\n" << ground_truth.size() << "\t" << detected_crispr.size() << "\n";
-    ss << "selection time\tfiltering time\n";
-    ss << get<0>(time) << "\t" << get<1>(time) + get<2>(time) << "\n";
+    ss << "selection time\tvalidation time\tfiltering time\n";
+    ss << get<0>(time) << "\t" << get<1>(time) << "\t" << get<2>(time) << "\n";
     ss << "suffix tree size\twavelet tree size\tsuffix array size\tcandidate list size\tcrispr list size\n";
     ss << get<0>(size) << "\t" << get<1>(size) << "\t" << get<2>(size) << "\t" << get<3>(size) << "\t" << get<4>(size)
        << "\n";
@@ -269,14 +249,14 @@ void run_test(vector<Crispr> ground_truth, string filename, int min_reps, string
 }
 
 
-void memory_test(string filename, int min_reps, string test_outfilename) {
+void memory_test(string filename, string test_outfilename) {
     vector<tuple<int, int, int, int>> detected_crispr;
     tuple<double, double, double> time;
     tuple<int, int, int, int, int> size;
-    detected_crispr = find_crispr(filename, min_reps, time, size);
+    detected_crispr = find_crispr(filename, time, size);
     std::stringstream ss;
-    ss << "selection time\tfiltering time\n";
-    ss << get<0>(time) << "\t" << get<1>(time) + get<2>(time) << "\n";
+    ss << "selection time\tvalidation time\tfiltering time\n";
+    ss << get<0>(time) << "\t" << get<1>(time) << "\t" << get<2>(time) << "\n";
     ss << "suffix tree size\twavelet tree size\tsuffix array size\tcandidate list size\tcrispr list size\n";
     ss << get<0>(size) << "\t" << get<1>(size) << "\t" << get<2>(size) << "\t" << get<3>(size) << "\t" << get<4>(size)
        << "\n";
@@ -297,17 +277,21 @@ int main(int argc, char *argv[]) {
         char *pEnd;
         min_reps = strtol(argv[2], NULL, 10);
     }
-    string file;
-    //cin >> file;
-
     //Clostridioides difficile  NZ https://crispr.i2bc.paris-saclay.fr/crispr/crispr_db.php?checked%5B%5D=NZ_LN614756
     //
-    string tamanos[6] = {"200", "800", "1600", "3200", "6400", "12800"};
-    for (string s: tamanos) {
-        file = file = "/home/anouk/Documents/memoria/data/resource_test/NC_013210_" + s + ".fasta";
-        string test_output = "/home/anouk/Documents/memoria/data/resource_test/out/NC_013210_" + s + "_out.fasta";
+    /*string tamanos[8] = {"100615", "191799", "503000", "1057280", "1967000", "4296000", "5482170", "11121000"};
+    for (string s : tamanos) {
+        file = "/home/anouk/Documents/memoria/data/resource_test/" + s + ".fasta";
+        string test_output = "/home/anouk/Documents/memoria/data/resource_test/output/" + s + "_out.txt";
         memory_test(file, 2, test_output);
-    }
+        cout << "done with " << s << endl;
+    }*/
+    tuple<double, double, double> time;
+    tuple<int, int, int, int, int> size;
+    string file = "/home/anouk/Documents/memoria/data/resource_test/503000.fasta";
+    string outfile = "/home/anouk/Documents/memoria/data/resource_test/output/503000_test.txt";
+    string test_output = "/home/anouk/Documents/memoria/data/output/NC_015138_test_nf.txt";
+    memory_test(file, outfile);
 
 
 }
